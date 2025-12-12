@@ -1,8 +1,11 @@
 from typing import List
 from fastapi import FastAPI
 from pydantic import BaseModel
+from pypdf import PdfReader
 
 app = FastAPI(title="Diabetes Guideline Assistant")
+
+DOC_PAGES: List[dict] = []
 
 @app.get("/health")
 def health():
@@ -25,16 +28,25 @@ class QueryResponse(BaseModel):
     category: str
     evidence: List[Evidence]
 
+def extract_pages(pdf_path: str) -> List[dict]:
+    reader = PdfReader(pdf_path)
+    pages = []
+    for i, page in enumerate(reader.pages, start=1):
+        text = page.extract_text() or ""
+        pages.append({"page": i, "text": text})
+    return pages
+
 @app.post("/ingest")
 def ingest(req: IngestRequest):
-    return {"ok": True, "message": f"ingest placeholder: {req.pdf_path}"}
+    global DOC_PAGES
+    DOC_PAGES = extract_pages(req.pdf_path)
+    return {"ok": True, "pages": len(DOC_PAGES)}
 
-@app.post("/query", response_model=QueryResponse)
-def query(req: QueryRequest):
+@app.get("/debug/pdf")
+def debug_pdf(page: int = 1, chars: int = 300):
+    text = DOC_PAGES[page - 1]["text"] or ""
     return {
-        "answer": "placeholder answer",
-        "category": "Screening",
-        "evidence": [
-            {"page": 1, "text": "placeholder evidence text", "score": 0.0}
-        ],
+        "pages": len(DOC_PAGES),
+        "page": page,
+        "preview": text[:chars],
     }
