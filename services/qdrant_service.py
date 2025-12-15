@@ -1,5 +1,5 @@
 from qdrant_client import QdrantClient
-from qdrant_client.models import VectorParams, Distance
+from qdrant_client.models import VectorParams, Distance, PointStruct
 
 def create_qdrant_client(mode: str, url: str | None, api_key: str | None, path: str | None) -> tuple[QdrantClient, str]:
     if mode == "cloud":
@@ -29,3 +29,16 @@ def ensure_collection(client: QdrantClient, collection_name: str, vector_size: i
             f"but embedding dim is {vector_size}. "
             f"Use a new collection name or delete/recreate the collection."
         )
+    
+def upsert_chunks(
+    client: QdrantClient,
+    collection_name: str,
+    ids: list[str],
+    vectors: list[list[float]],
+    payloads: list[dict],
+) -> None:
+    points = [
+        PointStruct(id=ids[i], vector=vectors[i], payload=payloads[i])
+        for i in range(len(ids))
+    ]
+    client.upsert(collection_name=collection_name, points=points)

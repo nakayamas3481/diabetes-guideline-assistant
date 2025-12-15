@@ -1,14 +1,16 @@
 from typing import List
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from pathlib import Path
 from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException
 from openai import OpenAI
 from qdrant_client import QdrantClient
+import uuid
 
 from config import settings
-from services.pdf_service import extract_pages
-from services.embeddings_service import detect_embedding_dim
-from services.qdrant_service import create_qdrant_client, ensure_collection
+from services.pdf_service import extract_pages, pages_to_chunks
+from services.embeddings_service import detect_embedding_dim, embed_texts
+from services.qdrant_service import create_qdrant_client, ensure_collection, upsert_chunks
 
 
 DOC_PAGES: List[dict] = []
@@ -65,8 +67,34 @@ class IngestRequest(BaseModel):
 @app.post("/ingest")
 def ingest(req: IngestRequest):
     global DOC_PAGES
+    if QDRANT_CLIENT is None or OPENAI_CLIENT is None or EMBED_DIM is None:
+        raise HTTPException(status_code=500, detail="Services not initialized")
+
+    # 1) PDF → pages
     DOC_PAGES = extract_pages(req.pdf_path)
-    return {"ok": True, "pages": len(DOC_PAGES)}
+
+    # 2) pages → chunks
+    chunks = pages_to_chunks(DOC_PAGES, chunk_size=1000, overlap=150)
+    texts = [c["text"] for c in chunks]
+
+    # 3) embeddings（まとめて）
+    vectors = embed_texts(OPENAI_CLIENT, settings.OPENAI_EMBEDDING_MODEL, texts)
+    if len(vectors) != len(texts):
+        raise HTTPException(status_code=500, detail="Embedding count mismatch")
+
+    # 4) Qdrant upsert
+    src = Path(req.pdf_path).name
+    ids = [
+        str(uuid.uuid5(uuid.NAMESPACE_URL, f"{src}|p{c['page']}|c{c['chunk_index']}"))
+        for c in chunks
+    ]
+    payloads = [
+        {"source": src, "page": c["page"], "chunk_index": c["chunk_index"], "text": c["text"]}
+        for c in chunks
+    ]
+    upsert_chunks(QDRANT_CLIENT, settings.QDRANT_COLLECTION, ids, vectors, payloads)
+
+    return {"ok": True, "pages": len(DOC_PAGES), "chunks": len(chunks)}
 
 @app.get("/debug/pdf")
 def debug_pdf(page: int = 1, chars: int = 300):
