@@ -108,52 +108,61 @@ class Evidence(BaseModel):
 
 class QueryResponse(BaseModel):
     answer: str
-    category: str
+    categories: List[str]
     evidence: List[Evidence]
+
+from services.category_service import classify_categories
 
 @app.post("/query", response_model=QueryResponse)
 def query(req: QueryRequest):
     if QDRANT_CLIENT is None or OPENAI_CLIENT is None:
         raise HTTPException(status_code=500, detail="Services not initialized")
 
-    if not req.question.strip():
-        raise HTTPException(status_code=400, detail="question must be non-empty")
+    # 1) 質問をベクトル化
+    qvec = embed_text(
+        OPENAI_CLIENT,
+        settings.OPENAI_EMBEDDING_MODEL,
+        req.question,
+    )
 
-    # 1) 質問をembedding
-    qvec = embed_text(OPENAI_CLIENT, settings.OPENAI_EMBEDDING_MODEL, req.question)
-
-    # 2) Qdrant検索
+    # 2) Qdrantで検索してevidenceを作る
     hits = search_similar(
         QDRANT_CLIENT,
         settings.QDRANT_COLLECTION,
-        qvec,
+        query_vector=qvec,
         top_k=req.top_k,
     )
 
-    # 3) evidence形式に整形（payloadから取り出す）
-    evidence = []
-    for h in hits:  # h は dict
-        evidence.append(
-            Evidence(
-                page=int(h.get("page") or 0),
-                text=(h.get("text") or "")[:500],
-                score=float(h.get("score") or 0.0),
-            )
+    evidence = [
+        Evidence(page=h.get("page") or 0, text=h.get("text") or "", score=h.get("score") or 0.0)
+        for h in hits
+    ]
+
+    # 3) ここにカテゴリ推定を入れる
+    categories = classify_categories(
+        OPENAI_CLIENT,
+        settings.OPENAI_CHAT_MODEL,
+        req.question,
+        [e.model_dump() for e in evidence],
+    )
+
+    # 4) カテゴリが0件なら早期リターン
+    if not categories:
+        return QueryResponse(
+            answer="This question is outside the supported diabetes guideline topics, or no supporting evidence was retrieved.",
+            categories=[],
+            evidence=[],
         )
 
-    if evidence:
-        answer = generate_answer(
-            OPENAI_CLIENT,
-            settings.OPENAI_CHAT_MODEL,
-            req.question,
-            [e.model_dump() for e in evidence],
-        )
-    else:
-        answer = "文書内に明確な記載が見つかりませんでした。"
+    # 5) 回答生成（既存の generate_answer を呼ぶ）
+    answer = generate_answer(
+        OPENAI_CLIENT,
+        settings.OPENAI_CHAT_MODEL,
+        req.question,
+        [e.model_dump() for e in evidence],
+    )
 
-    category = "Unknown" 
-
-    return {"answer": answer, "category": category, "evidence": evidence}
+    return QueryResponse(answer=answer, categories=categories, evidence=evidence)
 
 @app.get("/debug/pdf")
 def debug_pdf(page: int = 1, chars: int = 300):
