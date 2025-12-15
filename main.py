@@ -2,6 +2,7 @@ from typing import List
 from fastapi import FastAPI
 from pydantic import BaseModel
 from pypdf import PdfReader
+from config import settings
 
 app = FastAPI(title="Diabetes Guideline Assistant")
 
@@ -9,7 +10,12 @@ DOC_PAGES: List[dict] = []
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "qdrant_mode": settings.qdrant_mode(),
+        "collection": settings.QDRANT_COLLECTION,
+        "embedding_model": settings.OPENAI_EMBEDDING_MODEL,
+    }
 
 class IngestRequest(BaseModel):
     pdf_path: str
