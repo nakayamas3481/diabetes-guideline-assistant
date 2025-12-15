@@ -9,8 +9,8 @@ import uuid
 
 from config import settings
 from services.pdf_service import extract_pages, pages_to_chunks
-from services.embeddings_service import detect_embedding_dim, embed_texts
-from services.qdrant_service import create_qdrant_client, ensure_collection, upsert_chunks
+from services.embeddings_service import detect_embedding_dim, embed_texts, embed_text
+from services.qdrant_service import create_qdrant_client, ensure_collection, upsert_chunks, search_similar
 
 
 DOC_PAGES: List[dict] = []
@@ -95,6 +95,56 @@ def ingest(req: IngestRequest):
     upsert_chunks(QDRANT_CLIENT, settings.QDRANT_COLLECTION, ids, vectors, payloads)
 
     return {"ok": True, "pages": len(DOC_PAGES), "chunks": len(chunks)}
+
+class QueryRequest(BaseModel):
+    question: str
+    top_k: int = 5
+
+class Evidence(BaseModel):
+    page: int
+    text: str
+    score: float
+
+class QueryResponse(BaseModel):
+    answer: str
+    category: str
+    evidence: List[Evidence]
+
+@app.post("/query", response_model=QueryResponse)
+def query(req: QueryRequest):
+    if QDRANT_CLIENT is None or OPENAI_CLIENT is None:
+        raise HTTPException(status_code=500, detail="Services not initialized")
+
+    if not req.question.strip():
+        raise HTTPException(status_code=400, detail="question must be non-empty")
+
+    # 1) 質問をembedding
+    qvec = embed_text(OPENAI_CLIENT, settings.OPENAI_EMBEDDING_MODEL, req.question)
+
+    # 2) Qdrant検索
+    hits = search_similar(
+        QDRANT_CLIENT,
+        settings.QDRANT_COLLECTION,
+        qvec,
+        top_k=req.top_k,
+    )
+
+    # 3) evidence形式に整形（payloadから取り出す）
+    evidence = []
+    for h in hits:  # h は dict
+        evidence.append(
+            Evidence(
+                page=int(h.get("page") or 0),
+                text=(h.get("text") or "")[:500],
+                score=float(h.get("score") or 0.0),
+            )
+        )
+
+    # 4) まずはテンプレ回答（次ステップで拡張）
+    answer = "関連箇所（根拠）を表示します。" if evidence else "文書内に明確な記載が見つかりませんでした。"
+    category = "Unknown" 
+
+    return {"answer": answer, "category": category, "evidence": evidence}
 
 @app.get("/debug/pdf")
 def debug_pdf(page: int = 1, chars: int = 300):

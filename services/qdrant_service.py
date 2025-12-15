@@ -42,3 +42,29 @@ def upsert_chunks(
         for i in range(len(ids))
     ]
     client.upsert(collection_name=collection_name, points=points)
+
+def search_similar(
+    client: QdrantClient,
+    collection_name: str,
+    query_vector: list[float],
+    top_k: int,
+) -> list[dict]:
+    res = client.query_points(
+        collection_name=collection_name,
+        query=query_vector,
+        limit=top_k,
+        with_payload=True,
+        with_vectors=False,
+    )
+
+    hits: list[dict] = []
+    for p in res.points:
+        payload = p.payload or {}
+        hits.append(
+            {
+                "page": payload.get("page"),
+                "text": payload.get("text", ""),
+                "score": float(p.score),
+            }
+        )
+    return hits
