@@ -7,6 +7,7 @@ from pydantic import AnyUrl, SecretStr
 class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: SecretStr
+    OPENAI_CHAT_MODEL: str
     OPENAI_EMBEDDING_MODEL: str
 
     # Qdrant (Cloud)

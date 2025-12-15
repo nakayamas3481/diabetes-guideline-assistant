@@ -11,6 +11,7 @@ from config import settings
 from services.pdf_service import extract_pages, pages_to_chunks
 from services.embeddings_service import detect_embedding_dim, embed_texts, embed_text
 from services.qdrant_service import create_qdrant_client, ensure_collection, upsert_chunks, search_similar
+from services.answer_service import generate_answer
 
 
 DOC_PAGES: List[dict] = []
@@ -140,8 +141,16 @@ def query(req: QueryRequest):
             )
         )
 
-    # 4) まずはテンプレ回答（次ステップで拡張）
-    answer = "関連箇所（根拠）を表示します。" if evidence else "文書内に明確な記載が見つかりませんでした。"
+    if evidence:
+        answer = generate_answer(
+            OPENAI_CLIENT,
+            settings.OPENAI_CHAT_MODEL,
+            req.question,
+            [e.model_dump() for e in evidence],
+        )
+    else:
+        answer = "文書内に明確な記載が見つかりませんでした。"
+
     category = "Unknown" 
 
     return {"answer": answer, "category": category, "evidence": evidence}
