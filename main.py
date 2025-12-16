@@ -164,6 +164,7 @@ def qdrant_status():
 class QueryRequest(BaseModel):
     question: str
     top_k: int = 5
+    debug_return_evidence: bool = False  # 評価用
 
 class Evidence(BaseModel):
     source: str
@@ -211,12 +212,12 @@ def query(req: QueryRequest):
         [e.model_dump() for e in evidence],
     )
 
-    # 4) カテゴリが0件なら早期リターン
+    # 4) カテゴリが0件なら早期リターン  
     if not categories:
         return QueryResponse(
             answer="This question is outside the supported diabetes guideline topics, or no supporting evidence was retrieved.",
             categories=[],
-            evidence=[],
+            evidence=(evidence if req.debug_return_evidence else []),
         )
 
     # 5) 回答生成（既存の generate_answer を呼ぶ）

@@ -1,0 +1,34 @@
+{"id":"Q001","question":"What lifestyle counselling elements should be covered for a newly diagnosed patient with diabetes?","expected_categories":["Lifestyle management recommendations"]}
+{"id":"Q002","question":"What dietary patterns are broadly recommended for type 2 diabetes (e.g., calories, fats, fibre, added sugars)?","expected_categories":["Lifestyle management recommendations"]}
+{"id":"Q003","question":"What physical activity approach is recommended (aerobic vs resistance, frequency conceptually) for adults with type 2 diabetes?","expected_categories":["Lifestyle management recommendations"]}
+{"id":"Q004","question":"Should patients with diabetes be counselled about tobacco and alcohol use?","expected_categories":["Lifestyle management recommendations"]}
+{"id":"Q005","question":"What role does structured patient education or diabetes self-management education play in diabetes management?","expected_categories":["Lifestyle management recommendations"]}
+{"id":"Q006","question":"For overweight or obese adults with type 2 diabetes, what weight-related advice is emphasized?","expected_categories":["Lifestyle management recommendations"]}
+{"id":"Q007","question":"Are group education programmes mentioned as effective or cost-effective for diabetes self-management?","expected_categories":["Lifestyle management recommendations"]}
+{"id":"Q008","question":"What practical self-care topics should patients understand (e.g., foot hygiene, footwear, daily checks)?","expected_categories":["Lifestyle management recommendations"]}
+
+{"id":"Q009","question":"What essential medicines are mentioned for glycaemic control in most patients with diabetes (examples)?","expected_categories":["Medication protocol guidance"]}
+{"id":"Q010","question":"What monitoring approach is recommended for glycaemic control (HbA1c vs glucose), and what frequency guidance is mentioned?","expected_categories":["Medication protocol guidance","Complication screening schedules"]}
+{"id":"Q011","question":"When HbA1c testing is not available, what alternative is suggested for monitoring glycaemic control?","expected_categories":["Medication protocol guidance"]}
+{"id":"Q012","question":"Who is self-monitoring of blood glucose recommended for, and why?","expected_categories":["Medication protocol guidance"]}
+{"id":"Q013","question":"What barriers to self-monitoring (devices/strips) are noted, and what lower-cost alternative is mentioned?","expected_categories":["Medication protocol guidance"]}
+{"id":"Q014","question":"What medicines are mentioned for cardiovascular risk-factor management in people with diabetes (examples)?","expected_categories":["Medication protocol guidance"]}
+{"id":"Q015","question":"Why is blood glucose control important in preventing or slowing diabetic complications such as retinopathy and neuropathy?","expected_categories":["Medication protocol guidance"]}
+{"id":"Q016","question":"In settings with limited specialist availability, what workforce or task-sharing approaches are mentioned for diabetes care delivery?","expected_categories":["Medication protocol guidance","Referral criteria"]}
+
+{"id":"Q017","question":"What diabetes complications are highlighted as requiring routine screening or monitoring (examples)?","expected_categories":["Complication screening schedules"]}
+{"id":"Q018","question":"What is recommended regarding periodic comprehensive eye examinations for people with diabetes?","expected_categories":["Complication screening schedules"]}
+{"id":"Q019","question":"What intervention is mentioned for preventing or delaying vision loss from diabetic retinopathy (high level)?","expected_categories":["Complication screening schedules"]}
+{"id":"Q020","question":"What test is mentioned to detect early kidney damage in diabetes, and what does early detection enable?","expected_categories":["Complication screening schedules"]}
+{"id":"Q021","question":"What foot-care screening or examination practices are mentioned to reduce risk of ulcers and amputations?","expected_categories":["Complication screening schedules"]}
+{"id":"Q022","question":"How often should HbA1c be measured in type 2 diabetes, and how does this compare with type 1 diabetes?","expected_categories":["Complication screening schedules"]}
+{"id":"Q023","question":"What does the report say about early intervention and slowing progression of diabetes complications (general principle)?","expected_categories":["Complication screening schedules"]}
+{"id":"Q024","question":"What kinds of rehabilitation services are mentioned as helping minimize the impact of diabetes complications?","expected_categories":["Complication screening schedules"]}
+
+{"id":"Q025","question":"What is the role of a referral and back-referral system in diabetes care delivery?","expected_categories":["Referral criteria"]}
+{"id":"Q026","question":"When should primary care consider escalation or referral for ophthalmic evaluation for a person with diabetes?","expected_categories":["Referral criteria"]}
+{"id":"Q027","question":"What situations suggest referral or escalation for suspected kidney disease evaluation in diabetes (conceptually)?","expected_categories":["Referral criteria"]}
+{"id":"Q028","question":"What does the report say about having standard criteria for referral from primary to secondary/tertiary care?","expected_categories":["Referral criteria"]}
+
+{"id":"Q029","question":"How do I cook pasta al dente?","expected_categories":[]}
+{"id":"Q030","question":"What are the best strength training plans for marathon runners without diabetes?","expected_categories":[]}
