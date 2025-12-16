@@ -10,7 +10,7 @@ import uuid
 from config import settings
 from services.pdf_service import extract_pages, pages_to_chunks
 from services.embeddings_service import detect_embedding_dim, embed_texts, embed_text
-from services.qdrant_service import create_qdrant_client, ensure_collection, upsert_chunks, search_similar
+from services.qdrant_service import create_qdrant_client, delete_by_source, ensure_collection, upsert_chunks, search_similar
 from services.answer_service import generate_answer
 
 
@@ -82,8 +82,12 @@ def ingest(req: IngestRequest):
     vectors = embed_texts(OPENAI_CLIENT, settings.OPENAI_EMBEDDING_MODEL, texts)
     if len(vectors) != len(texts):
         raise HTTPException(status_code=500, detail="Embedding count mismatch")
+    
+    # 4) Qdrant source delete
+    src = Path(req.pdf_path).name
+    delete_by_source(QDRANT_CLIENT, settings.QDRANT_COLLECTION, src)
 
-    # 4) Qdrant upsert
+    # 5) Qdrant upsert
     src = Path(req.pdf_path).name
     ids = [
         str(uuid.uuid5(uuid.NAMESPACE_URL, f"{src}|p{c['page']}|c{c['chunk_index']}"))
@@ -96,6 +100,28 @@ def ingest(req: IngestRequest):
     upsert_chunks(QDRANT_CLIENT, settings.QDRANT_COLLECTION, ids, vectors, payloads)
 
     return {"ok": True, "pages": len(DOC_PAGES), "chunks": len(chunks)}
+
+@api.get("/qdrant/status")
+def qdrant_status():
+    if QDRANT_CLIENT is None:
+        raise HTTPException(status_code=500, detail="Qdrant client not initialized")
+
+    collection = settings.QDRANT_COLLECTION
+
+    try:
+        points_count = QDRANT_CLIENT.count(collection_name=collection, exact=True).count
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read qdrant status: {e}")
+
+    return {
+        "mode": QDRANT_MODE,
+        "qdrant_path": str(settings.QDRANT_PATH) if settings.QDRANT_PATH else None,
+        "collection": collection,
+        "points_count": points_count,
+        "embedding_model": settings.OPENAI_EMBEDDING_MODEL,
+        "embedding_dim": EMBED_DIM,
+    }
+
 
 class QueryRequest(BaseModel):
     question: str

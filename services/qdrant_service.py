@@ -1,5 +1,6 @@
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct
+from qdrant_client.models import Filter, FieldCondition, MatchValue
 
 def create_qdrant_client(mode: str, url: str | None, api_key: str | None, path: str | None) -> tuple[QdrantClient, str]:
     if mode == "cloud":
@@ -29,7 +30,22 @@ def ensure_collection(client: QdrantClient, collection_name: str, vector_size: i
             f"but embedding dim is {vector_size}. "
             f"Use a new collection name or delete/recreate the collection."
         )
-    
+
+def delete_by_source(
+    client: QdrantClient,
+    collection_name: str,
+    source: str,
+) -> None:
+    flt = Filter(
+        must=[
+            FieldCondition(
+                key="source",
+                match=MatchValue(value=source),
+            )
+        ]
+    )
+    client.delete(collection_name=collection_name, points_selector=flt, wait=True)
+
 def upsert_chunks(
     client: QdrantClient,
     collection_name: str,
