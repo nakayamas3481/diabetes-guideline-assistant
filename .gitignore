@@ -3,3 +3,12 @@ __pycache__/
 *.pyc
 .env
 .qdrant/
+
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/.cache/
+frontend/.turbo/
+frontend/coverage/
+frontend/*.log

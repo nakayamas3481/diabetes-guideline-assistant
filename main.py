@@ -2,7 +2,7 @@ from typing import List
 from contextlib import asynccontextmanager
 from pathlib import Path
 from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException
 from openai import OpenAI
 from qdrant_client import QdrantClient
 import uuid
@@ -51,9 +51,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Diabetes Guideline Assistant", lifespan=lifespan)
+api = APIRouter(prefix="/api")
 
-
-@app.get("/health")
+@api.get("/health")
 def health():
     return {
         "status": "ok",
@@ -65,7 +65,7 @@ def health():
 class IngestRequest(BaseModel):
     pdf_path: str
 
-@app.post("/ingest")
+@api.post("/ingest")
 def ingest(req: IngestRequest):
     global DOC_PAGES
     if QDRANT_CLIENT is None or OPENAI_CLIENT is None or EMBED_DIM is None:
@@ -113,7 +113,7 @@ class QueryResponse(BaseModel):
 
 from services.category_service import classify_categories
 
-@app.post("/query", response_model=QueryResponse)
+@api.post("/query", response_model=QueryResponse)
 def query(req: QueryRequest):
     if QDRANT_CLIENT is None or OPENAI_CLIENT is None:
         raise HTTPException(status_code=500, detail="Services not initialized")
@@ -164,7 +164,8 @@ def query(req: QueryRequest):
 
     return QueryResponse(answer=answer, categories=categories, evidence=evidence)
 
-@app.get("/debug/pdf")
+
+@api.get("/debug/pdf")
 def debug_pdf(page: int = 1, chars: int = 300):
     if not DOC_PAGES:
         raise HTTPException(status_code=400, detail="No document ingested yet. Call POST /ingest first.")
@@ -174,7 +175,7 @@ def debug_pdf(page: int = 1, chars: int = 300):
     text = DOC_PAGES[page - 1]["text"] or ""
     return {"pages": len(DOC_PAGES), "page": page, "preview": text[:chars]}
 
-@app.get("/debug/qdrant")
+@api.get("/debug/qdrant")
 def debug_qdrant():
     if QDRANT_CLIENT is None:
         raise HTTPException(status_code=500, detail="Qdrant client not initialized")
@@ -189,3 +190,5 @@ def debug_qdrant():
         "embedding_dim": EMBED_DIM,
         "collections": names,
     }
+
+app.include_router(api)
