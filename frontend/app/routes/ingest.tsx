@@ -6,6 +6,7 @@ import {
   useRevalidator,
 } from "react-router";
 import type { Route } from "../+types/ingest";
+import { useEffect } from "react";
 
 type IngestSuccess = {
   pages: number;
@@ -31,6 +32,8 @@ type QdrantStatus = {
   points_count: number;
   embedding_model: string;
   embedding_dim: number | null;
+  sources: string[];
+  last_ingested_at: string | null;
 };
 
 type LoaderOk = {
@@ -46,6 +49,25 @@ type LoaderNg = {
 };
 
 type LoaderData = LoaderOk | LoaderNg;
+
+function formatInIST(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+
+  // India Standard Time: Asia/Kolkata (UTC+05:30)
+  const fmt = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  return `${fmt.format(d)} IST`;
+}
 
 export async function clientLoader(_: Route.ClientLoaderArgs) {
   try {
@@ -81,11 +103,18 @@ export default function IngestPage(_: Route.ComponentProps) {
   const nav = useNavigation();
   const isSubmitting = nav.state === "submitting";
 
+  // ★ Ingest成功したら status を自動更新（Refreshボタン不要）
+  useEffect(() => {
+    if (actionData?.ok === true) {
+      revalidator.revalidate();
+    }
+  }, [actionData, revalidator]);
+
   return (
     <div style={{ display: "grid", gap: 12, maxWidth: 900 }}>
       <h2 style={{ margin: 0 }}>Ingest</h2>
 
-      {/* ★ 既存データ（Qdrant status） */}
+      {/* Existing data (Qdrant) */}
       <div style={{ border: "1px solid #ddd", borderRadius: 12, padding: 12 }}>
         <div
           style={{
@@ -96,34 +125,31 @@ export default function IngestPage(_: Route.ComponentProps) {
           }}
         >
           <div style={{ fontWeight: 700 }}>Existing data (Qdrant)</div>
-
-          <button
-            type="button"
-            onClick={() => revalidator.revalidate()}
-            disabled={revalidator.state !== "idle"}
-            style={{
-              padding: "8px 10px",
-              borderRadius: 10,
-              border: "1px solid #ddd",
-              background: revalidator.state !== "idle" ? "#f3f3f3" : "white",
-              cursor: revalidator.state !== "idle" ? "not-allowed" : "pointer",
-              fontWeight: 600,
-            }}
-          >
-            {revalidator.state !== "idle" ? "Refreshing..." : "Refresh"}
-          </button>
+          {revalidator.state !== "idle" && (
+            <div style={{ opacity: 0.7, fontSize: 13 }}>Updating...</div>
+          )}
         </div>
 
         {loaderData.ok ? (
-          <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
-            <div style={{ opacity: 0.85, fontSize: 13 }}>
-              mode: <code>{loaderData.data.mode ?? "unknown"}</code>
-            </div>
-            <div style={{ opacity: 0.85, fontSize: 13 }}>
-              path: <code>{loaderData.data.qdrant_path ?? "n/a"}</code>
-            </div>
-            <div style={{ opacity: 0.85, fontSize: 13 }}>
-              collection: <code>{loaderData.data.collection}</code>
+          <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+            <div style={{ display: "grid", gap: 6 }}>
+              <div style={{ opacity: 0.85, fontSize: 13 }}>
+                mode: <code>{loaderData.data.mode ?? "unknown"}</code>
+              </div>
+              <div style={{ opacity: 0.85, fontSize: 13 }}>
+                path: <code>{loaderData.data.qdrant_path ?? "n/a"}</code>
+              </div>
+              <div style={{ opacity: 0.85, fontSize: 13 }}>
+                collection: <code>{loaderData.data.collection}</code>
+              </div>
+              <div style={{ opacity: 0.85, fontSize: 13 }}>
+                last_ingested_at:{" "}
+                <code>
+                  {loaderData.data.last_ingested_at
+                    ? formatInIST(loaderData.data.last_ingested_at)
+                    : "unknown (legacy data)"}
+                </code>
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 4 }}>
@@ -138,8 +164,23 @@ export default function IngestPage(_: Route.ComponentProps) {
               </div>
             </div>
 
+            <div style={{ opacity: 0.85, fontSize: 13 }}>
+              sources:{" "}
+              {loaderData.data.sources.length > 0 ? (
+                <span>
+                  {loaderData.data.sources.map((s) => (
+                    <code key={s} style={{ marginRight: 8 }}>
+                      {s}
+                    </code>
+                  ))}
+                </span>
+              ) : (
+                <span style={{ opacity: 0.7 }}>None</span>
+              )}
+            </div>
+
             {loaderData.data.points_count === 0 && (
-              <div style={{ opacity: 0.7, marginTop: 6 }}>
+              <div style={{ opacity: 0.7 }}>
                 No points yet. Run ingest to populate Qdrant.
               </div>
             )}

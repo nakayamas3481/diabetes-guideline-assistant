@@ -6,6 +6,7 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from openai import OpenAI
 from qdrant_client import QdrantClient
 import uuid
+from datetime import datetime, timezone
 
 from config import settings
 from services.pdf_service import extract_pages, pages_to_chunks
@@ -82,19 +83,24 @@ def ingest(req: IngestRequest):
     vectors = embed_texts(OPENAI_CLIENT, settings.OPENAI_EMBEDDING_MODEL, texts)
     if len(vectors) != len(texts):
         raise HTTPException(status_code=500, detail="Embedding count mismatch")
-    
-    # 4) Qdrant source delete
-    src = Path(req.pdf_path).name
-    delete_by_source(QDRANT_CLIENT, settings.QDRANT_COLLECTION, src)
 
-    # 5) Qdrant upsert
+    # ★追加：この ingest 実行のタイムスタンプ（UTC）
+    ingested_at = datetime.now(timezone.utc).isoformat()
+
+    # 4) Qdrant upsert
     src = Path(req.pdf_path).name
     ids = [
         str(uuid.uuid5(uuid.NAMESPACE_URL, f"{src}|p{c['page']}|c{c['chunk_index']}"))
         for c in chunks
     ]
     payloads = [
-        {"source": src, "page": c["page"], "chunk_index": c["chunk_index"], "text": c["text"]}
+        {
+            "source": src,
+            "page": c["page"],
+            "chunk_index": c["chunk_index"],
+            "text": c["text"],
+            "ingested_at": ingested_at,
+        }
         for c in chunks
     ]
     upsert_chunks(QDRANT_CLIENT, settings.QDRANT_COLLECTION, ids, vectors, payloads)
@@ -113,6 +119,37 @@ def qdrant_status():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read qdrant status: {e}")
 
+    sources: set[str] = set()
+    last_ingested_at: str | None = None
+
+    try:
+        offset = None
+        while True:
+            points, offset = QDRANT_CLIENT.scroll(
+                collection_name=collection,
+                limit=256,
+                with_payload=True,
+                with_vectors=False,
+                offset=offset,
+            )
+
+            for p in points:
+                payload = p.payload or {}
+                src = payload.get("source")
+                if isinstance(src, str) and src:
+                    sources.add(src)
+
+                ts = payload.get("ingested_at")
+                if isinstance(ts, str) and ts:
+                    if last_ingested_at is None or ts > last_ingested_at:
+                        last_ingested_at = ts
+
+            if offset is None:
+                break
+    except Exception:
+        sources = set()
+        last_ingested_at = None
+
     return {
         "mode": QDRANT_MODE,
         "qdrant_path": str(settings.QDRANT_PATH) if settings.QDRANT_PATH else None,
@@ -120,8 +157,9 @@ def qdrant_status():
         "points_count": points_count,
         "embedding_model": settings.OPENAI_EMBEDDING_MODEL,
         "embedding_dim": EMBED_DIM,
+        "sources": sorted(list(sources)),
+        "last_ingested_at": last_ingested_at,
     }
-
 
 class QueryRequest(BaseModel):
     question: str
