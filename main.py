@@ -39,8 +39,13 @@ async def lifespan(app: FastAPI):
 
     OPENAI_CLIENT = OpenAI(api_key=settings.OPENAI_API_KEY.get_secret_value())
 
-    EMBED_DIM = detect_embedding_dim(OPENAI_CLIENT, settings.OPENAI_EMBEDDING_MODEL)
-    ensure_collection(QDRANT_CLIENT, settings.QDRANT_COLLECTION, EMBED_DIM)
+    # Prefer existing collection dim to avoid unnecessary OpenAI calls (offline-safe for history view)
+    if QDRANT_CLIENT.collection_exists(settings.QDRANT_COLLECTION):
+        info = QDRANT_CLIENT.get_collection(settings.QDRANT_COLLECTION)
+        EMBED_DIM = info.config.params.vectors.size
+    else:
+        EMBED_DIM = detect_embedding_dim(OPENAI_CLIENT, settings.OPENAI_EMBEDDING_MODEL)
+        ensure_collection(QDRANT_CLIENT, settings.QDRANT_COLLECTION, EMBED_DIM)
 
     yield
 
