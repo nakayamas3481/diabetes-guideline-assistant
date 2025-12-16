@@ -166,6 +166,7 @@ class QueryRequest(BaseModel):
     top_k: int = 5
 
 class Evidence(BaseModel):
+    source: str
     page: int
     text: str
     score: float
@@ -198,7 +199,7 @@ def query(req: QueryRequest):
     )
 
     evidence = [
-        Evidence(page=h.get("page") or 0, text=h.get("text") or "", score=h.get("score") or 0.0)
+        Evidence(source=h.get("source"), page=h.get("page") or 0, text=h.get("text") or "", score=h.get("score") or 0.0)
         for h in hits
     ]
 

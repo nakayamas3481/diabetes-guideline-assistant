@@ -78,6 +78,7 @@ def search_similar(
         payload = p.payload or {}
         hits.append(
             {
+                "source": payload.get("source"),
                 "page": payload.get("page"),
                 "text": payload.get("text", ""),
                 "score": float(p.score),

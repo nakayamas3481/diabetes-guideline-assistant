@@ -1,4 +1,9 @@
-export type Evidence = { page: number; text: string; score: number };
+export type Evidence = {
+    source?: string; 
+    page: number;
+    text: string;
+    score: number
+};
 
 export type HistoryItem = {
   id: string;
