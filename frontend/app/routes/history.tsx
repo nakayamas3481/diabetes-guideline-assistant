@@ -27,13 +27,11 @@ export default function HistoryPage() {
 
   const mergeFeedback = (history: HistoryItem[], feedback: FeedbackEntry[]): HistoryItem[] => {
     const byId = new Map<string, FeedbackEntry>();
-    const byQuestion = new Map<string, FeedbackEntry>();
     for (const f of feedback) {
       if (f.historyId) byId.set(f.historyId, f);
-      if (f.question) byQuestion.set(f.question, f);
     }
     return history.map((h) => {
-      const hit = (h.id && byId.get(h.id)) || byQuestion.get(h.question);
+      const hit = h.id ? byId.get(h.id) : undefined;
       if (!hit) return h;
       return {
         ...h,

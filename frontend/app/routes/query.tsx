@@ -301,7 +301,6 @@ export default function QueryPage(_: Route.ComponentProps) {
                 type="button"
                 onClick={() => {
                   setFeedbackChoice("up");
-                  setFeedbackReason("");
                   setFeedbackComment("");
                   handleRecordFeedback("up");
                 }}
